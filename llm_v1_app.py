@@ -6,46 +6,49 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # Load model and tokenizer
 model = tf.keras.models.load_model("health_chat_model.keras")
-
 with open("tokenizer.pkl", "rb") as f:
     tokenizer = pickle.load(f)
 
-MAX_LEN = 50  # Adjust this based on how you trained the model
+# Parameters
+sequence_length = 5  # This must match training
 
-# Preprocess input text
-def preprocess(text):
-    sequence = tokenizer.texts_to_sequences([text])
-    padded = pad_sequences(sequence, maxlen=MAX_LEN, padding='post', truncating='post')
-    return padded
+# Function to generate response
+def generate_text(seed_text, next_words=30):
+    result = seed_text
+    for _ in range(next_words):
+        token_list = tokenizer.texts_to_sequences([result])[0]
+        token_list = pad_sequences([token_list], maxlen=sequence_length, truncating='pre')
+        predicted = model.predict(token_list, verbose=0)
+        predicted_index = np.argmax(predicted, axis=-1)[0]
+        next_word = tokenizer.index_word.get(predicted_index, '')
+        result += " " + next_word
+    return result
 
-# Decode output tokens to readable text
-def decode_output(predicted_sequence):
-    predicted_ids = np.argmax(predicted_sequence, axis=-1)[0]  # Get first sequence
-    index_word = {index: word for word, index in tokenizer.word_index.items()}
-    words = []
-    for idx in predicted_ids:
-        if idx == 0:
-            continue
-        word = index_word.get(idx, '')
-        if word:
-            words.append(word)
-    return ' '.join(words)
+# Streamlit UI
+st.set_page_config(page_title="Health Chatbot 💬", layout="centered")
+st.title("🩺 Health Chatbot")
+st.markdown("Ask any health-related question below:")
 
-# Streamlit app layout
-st.set_page_config(page_title="Health LLM Chatbot", layout="wide")
-st.title("🩺 Health LLM Chatbot")
-st.write("Ask any health-related question and get a smart medical response.")
+# Chat interface
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-user_input = st.text_input("You:", "")
+# Display past messages
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
+# Input field
+user_input = st.chat_input("Type your question here...")
+
+# When user submits
 if user_input:
-    try:
-        input_seq = preprocess(user_input)
-        prediction = model.predict(input_seq)
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-        # Convert predicted sequence to readable response
-        response_text = decode_output(prediction)
-
-        st.success(f"🤖 Chatbot: {response_text}")
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = generate_text(user_input, next_words=30)
+            st.markdown(response)
+    st.session_state.messages.append({"role": "assistant", "content": response})
