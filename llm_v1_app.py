@@ -10,7 +10,7 @@ model = tf.keras.models.load_model("health_chat_model.keras")
 with open("tokenizer.pkl", "rb") as f:
     tokenizer = pickle.load(f)
 
-MAX_LEN = 50  # Adjust based on training
+MAX_LEN = 50  # Adjust this based on how you trained the model
 
 # Preprocess input text
 def preprocess(text):
@@ -20,8 +20,10 @@ def preprocess(text):
 
 # Decode output tokens to readable text
 def decode_output(predicted_sequence):
-    predicted_sequence = np.argmax(predicted_sequence, axis=-1)  # shape: (1, max_len)
-    return tokenizer.sequences_to_texts(predicted_sequence)[0]
+    predicted_ids = np.argmax(predicted_sequence, axis=-1)[0]  # shape: (max_len,)
+    index_word = {index: word for word, index in tokenizer.word_index.items()}
+    words = [index_word.get(idx, '') for idx in predicted_ids if idx != 0]
+    return ' '.join(words)
 
 # Streamlit app layout
 st.set_page_config(page_title="Health LLM Chatbot", layout="wide")
