@@ -20,9 +20,15 @@ def preprocess(text):
 
 # Decode output tokens to readable text
 def decode_output(predicted_sequence):
-    predicted_ids = np.argmax(predicted_sequence, axis=-1)[0]  # shape: (max_len,)
+    predicted_ids = np.argmax(predicted_sequence, axis=-1)[0]  # Get first sequence
     index_word = {index: word for word, index in tokenizer.word_index.items()}
-    words = [index_word.get(idx, '') for idx in predicted_ids if idx != 0]
+    words = []
+    for idx in predicted_ids:
+        if idx == 0:
+            continue
+        word = index_word.get(idx, '')
+        if word:
+            words.append(word)
     return ' '.join(words)
 
 # Streamlit app layout
